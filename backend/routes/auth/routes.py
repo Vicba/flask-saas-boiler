@@ -1,13 +1,11 @@
 import os
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, redirect, url_for, current_app
+from flask import Blueprint, request, jsonify, url_for, current_app
 from models.user import User
 from auth import generate_token
 from flask_limiter.util import get_remote_address
 from flask_limiter import Limiter
 from dotenv import load_dotenv
-from authlib.integrations.flask_client import OAuth
-
 
 load_dotenv()
 
@@ -34,10 +32,9 @@ def init_oauth(oauth):
 @limiter.limit("10 per minute")
 def register():
     data = request.json
-    user = User.register(data['email'], data['password'])
+    user = User.register(email=data['email'], password=data['password'])
     if user:
         token = generate_token(str(user['_id']))
-        User.update_profile(user['_id'], {'last_login': datetime.now(timezone.utc)})
         return jsonify({'token': token})
     return jsonify({'message': 'User already exists'}), 400
 
@@ -52,8 +49,6 @@ def login():
         User.update_profile(user['_id'], {'last_login': datetime.now(timezone.utc)})
         return jsonify({'token': token})
     return jsonify({'message': 'Invalid credentials'}), 400
-
-
 
 # route: /api/auth/google
 @auth_bp.route('/google', methods=['GET'])
@@ -80,13 +75,10 @@ def google_callback():
 
     user = User.get_by_email(email)
     if not user:
-        user = User.register_google(email, google_id=google_user.json()['id'])
+        user = User.register(email=email, google_id=google_user.json()['id'])
+
+    # update last login
+    User.update_profile(user['_id'], {'last_login': datetime.now(timezone.utc)})
 
     token = generate_token(str(user['_id']))
     return jsonify({'token': token})
-
-# route: /api/auth/google/callback
-@auth_bp.route('/check', methods=['GET'])
-@limiter.limit("10 per minute")
-def auth_check():
-    return jsonify({'token': "hi"})

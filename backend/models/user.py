@@ -3,51 +3,37 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Union
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
-from bson.objectid import ObjectId  # Import ObjectId
+from bson.objectid import ObjectId
 
 client = MongoClient(os.getenv("MONGODB_URI"))
 db = client['ai_saas']
 
 class User:
     @staticmethod
-    def register(email: str, password: str, first_name: Optional[str] = None, last_name: Optional[str] = None, google_id: Optional[str] = None):
+    def register(email: str, google_id: Optional[str] = None, password: Optional[str] = None, first_name: Optional[str] = None, last_name: Optional[str] = None):
         if db.users.find_one({"email": email}):
             return None
-        hashed_password = generate_password_hash(password)
-        user_id = db.users.insert_one({
-            "email": email,
-            "password": hashed_password,
-            "first_name": first_name,
-            "last_name": last_name,
-            "credits": 10,  # Initial credits
-            "created_at": datetime.now(timezone.utc),
-            "last_login": None,
-            "is_active": True,
-            "role": "user",
-            "google_id": google_id,
-            "preferences": {}
-        }).inserted_id
-        return db.users.find_one({"_id": user_id})
-    
-    @staticmethod
-    def register_google(email: str, google_id: str, first_name: Optional[str] = None, last_name: Optional[str] = None):
-        if db.users.find_one({"email": email}):
-            return None
-        user_id = db.users.insert_one({
-            "email": email,
-            "password": None,
-            "first_name": first_name,
-            "last_name": last_name,
-            "credits": 10,  # Initial credits
-            "created_at": datetime.now(timezone.utc),
-            "last_login": None,
-            "is_active": True,
-            "role": "user",
-            "google_id": google_id,
-            "preferences": {}
-        }).inserted_id
-        return db.users.find_one({"_id": user_id})
+        
+        user_data = {
+                    "email": email,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "credits": 10,
+                    "created_at": datetime.now(timezone.utc),
+                    "last_login": datetime.now(timezone.utc),
+                    "is_active": True,
+                    "role": "user",
+                    "preferences": {},
+                    "google_id": google_id,
+                    "password": generate_password_hash(password) if password else None
+                }
 
+        if not (google_id or password):
+            return None  # Either google_id or password must be provided
+
+        user_id = db.users.insert_one(user_data).inserted_id
+        return db.users.find_one({"_id": user_id})
+  
     @staticmethod
     def authenticate(email: str, password: str):
         user = db.users.find_one({"email": email})
