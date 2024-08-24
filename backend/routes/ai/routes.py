@@ -5,6 +5,8 @@ from auth import token_required
 from models.user import User
 import stripe
 from dotenv import load_dotenv
+from flask_limiter.util import get_remote_address
+from flask_limiter import Limiter
 
 load_dotenv()
 
@@ -14,8 +16,12 @@ ai_bp = Blueprint('ai', __name__)
 client = OpenAI() # make sure to set dotenv to access the api key
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
+# rate limit each user to 5 requests per minute
+limiter = Limiter(key_func=get_remote_address)
+
 # route: /api/ai/generate
 @ai_bp.route('/generate', methods=['POST'])
+@limiter.limit("5 per minute")
 @token_required
 def generate(user_id):
     data = request.json
