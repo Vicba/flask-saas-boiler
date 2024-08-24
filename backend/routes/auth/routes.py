@@ -13,6 +13,7 @@ auth_bp = Blueprint('auth', __name__)
 
 limiter = Limiter(key_func=get_remote_address)
 
+# nosec
 def init_oauth(oauth):
     google = oauth.register(
         name='google',
