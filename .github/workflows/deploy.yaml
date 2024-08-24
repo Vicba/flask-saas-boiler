@@ -43,6 +43,18 @@ jobs:
         source venv/bin/activate
         pip install -r backend/requirements.txt
 
+    # Add pylint step
+    - name: Run pylint
+      run: |
+        source venv/bin/activate
+        pylint --rcfile=backend/.pylintrc --ignore=venv --recursive=y backend
+
+    # Add bandit step
+    - name: Run bandit
+      run: |
+        source venv/bin/activate
+        bandit -r backend --exclude venv
+
     # # Deploy Flask backend to Heroku
     # - name: Deploy to Heroku
     #   run: |

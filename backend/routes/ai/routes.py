@@ -1,9 +1,9 @@
+import os
 from flask import Blueprint, request, jsonify
 from openai import OpenAI
 from auth import token_required
 from models.user import User
 import stripe
-import os
 from dotenv import load_dotenv
 
 load_dotenv()

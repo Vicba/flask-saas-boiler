@@ -1,9 +1,9 @@
+import os
 from flask import Blueprint, request, jsonify
 import stripe
 from auth import token_required
 from models.user import User
 import logging
-import os
 
 payment_bp = Blueprint('payment', __name__)
 
@@ -82,8 +82,8 @@ def webhook():
         if User.update_credits(user_id, credits):
             logging.info(f"Successfully added {credits} credits to user {user_id}")
             return jsonify({'success': True}), 200
-        else:
-            return jsonify({'error': 'Failed to update user credits'}), 400
+
+        return jsonify({'error': 'Failed to update user credits'}), 400
     else:
         logging.info(f"Unhandled event type: {event['type']}")
 

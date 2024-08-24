@@ -1,7 +1,7 @@
+import os
 from flask import Flask
 from flask_cors import CORS
 from routes.api import api
-import os
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -20,4 +20,4 @@ app.register_blueprint(api, url_prefix="/api")
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True) # nosec

@@ -6,3 +6,5 @@ flask-cors
 python-dotenv  
 openai 
 pymongo[srv]
+pylint==3.2.6
+bandit==1.7.9
