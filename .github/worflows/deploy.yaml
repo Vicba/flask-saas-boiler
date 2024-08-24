@@ -43,9 +43,9 @@ jobs:
         source venv/bin/activate
         pip install -r backend/requirements.txt
 
-    # Deploy Flask backend to Heroku
-    - name: Deploy to Heroku
-      run: |
-        git push heroku main
-      env:
-        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+    # # Deploy Flask backend to Heroku
+    # - name: Deploy to Heroku
+    #   run: |
+    #     git push heroku main
+    #   env:
+    #     HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
