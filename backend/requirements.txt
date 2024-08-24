@@ -1,0 +1,8 @@
+Flask
+pymongo
+stripe
+pyjwt
+flask-cors
+python-dotenv  
+openai 
+pymongo[srv]

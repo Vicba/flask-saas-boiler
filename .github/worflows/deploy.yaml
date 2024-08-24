@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # # Install Node.js dependencies
+    # - name: Install Node.js dependencies
+    #   run: npm install
+    #   working-directory: ./frontend
+
+    # # Build the Next.js frontend
+    # - name: Build Next.js app
+    #   run: npm run build
+    #   working-directory: ./frontend
+
+    # # Deploy Next.js to Vercel
+    # - name: Deploy to Vercel
+    #   run: |
+    #     vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+    #   working-directory: ./frontend
+    #   env:
+    #     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    # Set up Python and install dependencies
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r backend/requirements.txt
+
+    # Deploy Flask backend to Heroku
+    - name: Deploy to Heroku
+      run: |
+        git push heroku main
+      env:
+        HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
