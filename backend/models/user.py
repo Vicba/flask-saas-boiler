@@ -1,9 +1,10 @@
 import os
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Union
-from pymongo import MongoClient
-from werkzeug.security import generate_password_hash, check_password_hash
+from typing import Optional, Dict, Any, Union, Tuple
+from pymongo import MongoClient, IndexModel, ASCENDING
 from bson.objectid import ObjectId
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask import current_app
 
 client = MongoClient(os.getenv("MONGODB_URI"))
 db = client['ai_saas']
@@ -15,18 +16,18 @@ class User:
             return None
         
         user_data = {
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "credits": 10,
-                    "created_at": datetime.now(timezone.utc),
-                    "last_login": datetime.now(timezone.utc),
-                    "is_active": True,
-                    "role": "user",
-                    "preferences": {},
-                    "google_id": google_id,
-                    "password": generate_password_hash(password) if password else None
-                }
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+            "credits": 10,
+            "created_at": datetime.now(timezone.utc),
+            "last_login": datetime.now(timezone.utc),
+            "is_active": True,
+            "role": "user",
+            "preferences": {},
+            "google_id": google_id,
+            "password": generate_password_hash(password) if password else None
+        }
 
         if not (google_id or password):
             return None  # Either google_id or password must be provided
@@ -44,49 +45,63 @@ class User:
     @staticmethod
     def get_by_id(user_id: str):
         try:
-            return db.users.find_one({"_id": ObjectId(user_id)})
+            user = db.users.find_one({"_id": ObjectId(user_id)})
+            if user:
+                user['_id'] = str(user['_id'])  # Convert ObjectId to string
+            return user
         except Exception as e:
-            return None  # Handle any errors (e.g., invalid ObjectId format)
+            current_app.logger.error(f"Error getting user by ID: {str(e)}")
+            return None
 
     @staticmethod
     def get_by_email(email: str):
         try:
-            return db.users.find_one({"email": email})
+            return db.users.find_one({"email": email}, projection={"password": 0})
         except Exception as e:
+            current_app.logger.error(f"Error getting user by email: {str(e)}")
             return None 
 
     @staticmethod
     def update_credits(user_id: str, credits: int):
-        result = db.users.update_one(
-            {'_id': ObjectId(user_id)},
-            {'$inc': {'credits': credits}}
-        )
-        
-        if result.modified_count > 0:
-            updated_user = db.users.find_one({'_id': ObjectId(user_id)})
-            return updated_user['credits'] if updated_user else None
-        return None
+        try:
+            result = db.users.find_one_and_update(
+                {'_id': ObjectId(user_id)},
+                {'$inc': {'credits': credits}},
+                return_document=True
+            )
+            return result['credits'] if result else None
+        except Exception as e:
+            current_app.logger.error(f"Error updating user credits: {str(e)}")
+            return None
 
     @staticmethod
     def update_stripe_customer_id(user_id: str, stripe_customer_id: str):
-        db.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$set": {"stripe_customer_id": stripe_customer_id}}
-        )
+        try:
+            db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"stripe_customer_id": stripe_customer_id}}
+            )
+        except Exception as e:
+            current_app.logger.error(f"Error updating Stripe customer ID: {str(e)}")
         
     @staticmethod
-    def update_profile(user_id: str, update_data: Dict[str, Any]):
-        allowed_fields = ["first_name", "last_name", "email", "preferences", "last_login"]
+    def update_profile(user_id: str, update_data: Dict[str, Any]) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        allowed_fields = {"first_name", "last_name", "email", "preferences", "last_login"}
         update_dict = {k: v for k, v in update_data.items() if k in allowed_fields}
         
-        result = db.users.update_one(
-            {"_id": ObjectId(user_id)},
-            {"$set": update_dict}
-        )
+        if not update_dict:
+            return False, None  # No valid fields to update
         
-        if result.modified_count > 0:
-            return db.users.find_one({"_id": ObjectId(user_id)})
-        return None
+        try:
+            result = db.users.find_one_and_update(
+                {"_id": ObjectId(user_id)},
+                {"$set": update_dict},
+                return_document=True
+            )
+            return bool(result), result
+        except Exception as e:
+            current_app.logger.error(f"Error updating user profile: {str(e)}")
+            return False, None
 
     @staticmethod
     def change_role(user_id: str, new_role: str):
@@ -109,4 +124,3 @@ class User:
         if result.modified_count > 0:
             return True
         return False
-    

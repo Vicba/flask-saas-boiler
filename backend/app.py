@@ -4,10 +4,9 @@ from flask_cors import CORS
 from routes.api import api
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-
+from flask_caching import Cache
+import logging  
 
 load_dotenv()
 
@@ -15,25 +14,26 @@ app = Flask(__name__)
 CORS(app)
 oauth = OAuth(app)
 
-# MongoDB setup
-client = MongoClient(os.getenv("MONGODB_URI"))
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Implement caching
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
+# MongoDB setup with connection pooling
+client = MongoClient(os.getenv("MONGODB_URI"), maxPoolSize=50)
 db = client['ai_saas']
 
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
-# Add rate limits
-limiter = Limiter(
-    key_func=get_remote_address,
-    app=app,
-    # default_limits=["200 per day", "50 per hour"]
-)
-
 app.register_blueprint(api, url_prefix="/api")
 
-@app.errorhandler(429)
-def ratelimit_handler(e):
-    return jsonify(error="Rate limit exceeded, try again later", message=str(e.description)), 429
+@app.errorhandler(Exception)
+def handle_exception(e):
+    logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+    return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 if __name__ == "__main__":
-    app.run(debug=True) # nosec
+    app.run(debug=True, port=5000) # nosec

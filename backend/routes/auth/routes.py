@@ -3,15 +3,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, url_for, current_app
 from models.user import User
 from auth import generate_token
-from flask_limiter.util import get_remote_address
-from flask_limiter import Limiter
 from dotenv import load_dotenv
 
 load_dotenv()
 
 auth_bp = Blueprint('auth', __name__)
 
-limiter = Limiter(key_func=get_remote_address)
 
 # nosec
 def init_oauth(oauth):
@@ -30,9 +27,17 @@ def init_oauth(oauth):
 
 # route: /api/auth/register
 @auth_bp.route('/register', methods=['POST'])
-@limiter.limit("10 per minute")
 def register():
     data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({'message': 'Email and password are required'}), 400
+    
+    user = User.get_by_email(data['email'])
+    if user:
+        return jsonify({'message': 'User already exists'}), 400
+
     user = User.register(email=data['email'], password=data['password'])
     if user:
         token = generate_token(str(user['_id']))
@@ -41,7 +46,6 @@ def register():
 
 # route: /api/auth/login
 @auth_bp.route('/login', methods=['POST'])
-@limiter.limit("10 per minute")
 def login():
     data = request.json
     user = User.authenticate(data['email'], data['password'])
@@ -53,7 +57,6 @@ def login():
 
 # route: /api/auth/google
 @auth_bp.route('/google', methods=['GET'])
-@limiter.limit("10 per minute")
 def google_auth():
     google = init_oauth(current_app.extensions['authlib.integrations.flask_client'])
     redirect_uri = url_for('api.auth.google_callback', _external=True)
@@ -61,7 +64,6 @@ def google_auth():
 
 # route: /api/auth/google/callback
 @auth_bp.route('/google/callback', methods=['GET'])
-@limiter.limit("10 per minute")
 def google_callback():
     google = init_oauth(current_app.extensions['authlib.integrations.flask_client'])
     resp = google.authorize_access_token()

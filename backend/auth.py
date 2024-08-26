@@ -26,13 +26,18 @@ def decode_token(token):
 def token_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.headers.get('Authorization').split(" ")[1]
-        if not token:
-            return jsonify({'message': 'Token is missing!'}), 403
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({'error': 'Authorization header is missing'}), 401
+        
+        try:
+            token = auth_header.split(" ")[1]
+        except IndexError:
+            return jsonify({'error': 'Token is missing'}), 401
 
         user_id = decode_token(token)
         if not user_id:
-            return jsonify({'message': 'Token is invalid!'}), 403
+            return jsonify({'error': 'Token is invalid or expired'}), 401
         
         return f(user_id, *args, **kwargs)
     
