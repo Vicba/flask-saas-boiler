@@ -27,6 +27,9 @@ def generate(user_id):
     data = request.json
     prompt = data.get('prompt')
 
+    if not prompt.strip():
+        return jsonify({'error': 'Prompt is required'}), 400
+
     user = User.get_by_id(user_id)
 
     if user['credits'] <= 0:
@@ -46,3 +49,30 @@ def generate(user_id):
     User.update_credits(user_id, -1)
 
     return jsonify({'text': response.choices[0].message.content})
+
+# route: /api/ai/generate_image
+@ai_bp.route('/generate_image', methods=['POST'])
+@limiter.limit("5 per minute")
+@token_required
+def generate_image(user_id):
+    data = request.json
+    prompt = data.get('prompt')
+
+    if not prompt.strip():
+        return jsonify({'error': 'Prompt is required'}), 400
+    
+    user = User.get_by_id(user_id)
+
+    if user['credits'] <= 0:
+        return jsonify({'error': 'Not enough credits'}), 400
+
+    response = client.images.generate(
+        model="dall-e-3",
+        prompt=prompt,
+        size="1024x1024",
+        quality="standard"
+    )
+
+    User.update_credits(user_id, -3)
+
+    return jsonify({'image_url': response.data[0].url})
